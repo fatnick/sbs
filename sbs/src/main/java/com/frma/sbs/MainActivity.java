@@ -3,16 +3,20 @@ package com.frma.sbs;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.AssetManager;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -22,6 +26,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.ahmet.autoswitch.AutoSwitchList;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -111,7 +116,33 @@ public class MainActivity extends Activity implements View.OnClickListener, Comp
         copyAssets("armeabi");
 
         updateStatus();
+
+        /*
+         *  Registering BroadcastReceiver for communication with AppWatcher Service
+         *  Filtering to get only DISABLE and ENABLE commands
+         */
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("com.ahmet.autoswitch.DISABLE");
+        filter.addAction("com.ahmet.autoswitch.ENABLE");
+        registerReceiver(receiver,filter);
     }
+
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context,Intent intent)
+        {
+            String action = intent.getAction();
+            if(action.equals("com.ahmet.autoswitch.ENABLE")) {
+                enable();
+            }
+            else
+            {
+                disable();
+            }
+            Log.d("ATS", "Intent Handled");
+        }
+    };
     boolean mInItemUpdate = false;
     private void updateStatus() {
         new AsyncTaskWUI("Reading status...") {
@@ -241,6 +272,18 @@ public class MainActivity extends Activity implements View.OnClickListener, Comp
         }
     }
 
+    public void enable()
+    {
+        mEnabled = true;
+        mPrefs.edit().putBoolean("enabled", true).commit();
+        commit();
+    }
+    public void disable()
+    {
+        mEnabled = false;
+        mPrefs.edit().putBoolean("disabled", true).commit();
+        commit();
+    }
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean b) {
         if (seekBar == mZoomSeekBar) {
@@ -503,5 +546,26 @@ public class MainActivity extends Activity implements View.OnClickListener, Comp
                 "This is a log from SBS");
         this.startActivity(Intent.createChooser(emailIntent, "Sending email..."));
 
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.auto_switch_list, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            Intent i=new Intent(MainActivity.this, AutoSwitchList.class);
+            startActivity(i);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 }
